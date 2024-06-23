@@ -43,7 +43,7 @@ window.onload = function() {
 
 // تنظیم اندازه کلیدها        
         if (isMobileDevice()) {
-            keySize = Math.min(canvas.width, canvas.height) / 40; // اندازه کلید بزرگتر
+            keySize = Math.min(canvas.width, canvas.height) / 2000; // اندازه کلید بزرگتر
         } else {
             keySize = Math.min(canvas.width, canvas.height) / 20;
         }
