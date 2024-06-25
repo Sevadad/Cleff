@@ -1,0 +1,41 @@
+body {
+    margin: 0;
+    overflow: hidden;
+}
+
+#gameCanvas {
+    display: block;
+}
+
+#toggleNotesButton, #showLabelsButton, #toggleKeysButton {
+    position: absolute;
+    bottom: 10px;
+    z-index: 1;
+    padding: 10px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 20px;
+    margin-right: 10px; /* اضافه کردن فاصله بین دکمه‌ها */
+}
+
+#showLabelsButton {
+    right: 180px; /* تنظیم فاصله دکمه‌ها */
+}
+
+#toggleKeysButton {
+    right: 350px; /* تنظیم فاصله دکمه‌ها */
+}
+
+button {
+    transition: background-color 0.3s ease;
+}
+
+button:hover {
+    background-color: #45a049;
+}
+
+button:active {
+    background-color: #3e8e41;
+}
