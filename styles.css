@@ -1,0 +1,37 @@
+body {
+    margin: 0;
+    overflow: hidden;
+}
+
+#gameCanvas {
+    display: block;
+}
+
+.control-buttons {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.control-buttons button {
+    background-color: #4CAF50; /* سبز */
+    border: none;
+    color: white;
+    padding: 15px 32px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: background-color 0.3s ease;
+}
+
+.control-buttons button:hover {
+    background-color: #45a049;
+}
