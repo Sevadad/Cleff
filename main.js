@@ -95,8 +95,12 @@ window.onload = function() {
     }
 
     function resizeCanvas() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        // استفاده از visualViewport برای بهبود نمایش در موبایل
+        const width = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+        const height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+
+        canvas.width = width;
+        canvas.height = height;
 
         if (isMobileDevice()) {
             keySize = Math.min(canvas.width, canvas.height) / 6;
@@ -452,10 +456,20 @@ window.onload = function() {
         redraw();
     });
 
+    // پشتیبانی بهتر از موبایل
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', () => {
+            resizeCanvas();
+            redraw();
+        });
+    }
+
     window.addEventListener('orientationchange', () => {
-        if (isPortrait()) {
-            alert('لطفاً دستگاه خود را در حالت عمودی نگه دارید.');
-        }
+        // تاخیر کوتاه برای اطمینان از اعمال تغییرات
+        setTimeout(() => {
+            resizeCanvas();
+            redraw();
+        }, 100);
     });
 
     canvas.addEventListener('mousedown', handleMouseDown);
@@ -470,13 +484,15 @@ window.onload = function() {
     // Event listener برای کلیک روی نت‌ها (فقط برای موس)
     canvas.addEventListener('click', handleNoteClick);
 
-    if (isMobileDevice()) {
-        document.body.style.fontSize = '14px';
-        toggleNotesButton.style.fontSize = '36px';
-        showLabelsButton.style.fontSize = '36px';
-        toggleKeysButton.style.fontSize = '36px';
-        toggleLanguageButton.style.fontSize = '36px';
-    }
+    // جلوگیری از zoom دوبار کلیک در iOS
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', (event) => {
+        const now = Date.now();
+        if (now - lastTouchEnd <= 300) {
+            event.preventDefault();
+        }
+        lastTouchEnd = now;
+    }, false);
 
     resizeCanvas();
     redraw();
