@@ -3,7 +3,6 @@ window.onload = function() {
     const context = canvas.getContext('2d');
 
     const notes = ["C", "D", "E", "F", "G", "A", "B"];
-    let order = [...notes];
 
     const colors = {
         "C": "#FF0000",
@@ -30,7 +29,7 @@ window.onload = function() {
         sounds[note] = new Audio(`sounds/${note}.mp3`);
     });
 
-    let keySize, keySpacing, keyPositions, keyRects, staffTopMargin, staffSpacing, staffWidth, staffPositions, betweenStaffPositions;
+    let keySize, keySpacing, keyPositions, keyRects, staffTopMargin, staffSpacing, staffWidth, staffPositions;
     let lineColors = Array(5).fill("#000000");
     let noteColors = Array(9).fill("#808080");
     let noteNames = Array(9).fill("");
@@ -38,6 +37,7 @@ window.onload = function() {
     let draggingKeyIndex = -1;
     let draggingOffset = { x: 0, y: 0 };
     let noteLabels = {};
+    let notePositions = []; // ذخیره موقعیت‌های نت‌ها برای کلیک
     let showLabels = false;
     let showNotes = true;
     let showMainKeys = false;
@@ -50,10 +50,12 @@ window.onload = function() {
 
     toggleNotesButton.addEventListener('click', () => {
         showNotes = !showNotes;
+        redraw();
     });
 
     showLabelsButton.addEventListener('click', () => {
         showLabels = !showLabels;
+        redraw();
     });
 
     toggleKeysButton.addEventListener('click', () => {
@@ -69,7 +71,7 @@ window.onload = function() {
         } else {
             keyRects.forEach(key => key.hidden = false);
         }
-        draw();
+        redraw();
     });
 
     toggleLanguageButton.addEventListener('click', () => {
@@ -89,7 +91,7 @@ window.onload = function() {
             toggleKeysButton.textContent = "Toggle Main Keys";
             toggleLanguageButton.textContent = "Switch Language";
         }
-        draw();
+        redraw();
     }
 
     function resizeCanvas() {
@@ -98,6 +100,7 @@ window.onload = function() {
 
         if (isMobileDevice()) {
             keySize = Math.min(canvas.width, canvas.height) / 6;
+            staffSpacing = canvas.height / 6.5;
         } else {
             keySize = Math.min(canvas.width, canvas.height) / 10;
             staffSpacing = canvas.height / 6.5;
@@ -110,7 +113,6 @@ window.onload = function() {
         staffTopMargin = canvas.height / 10;
         staffWidth = canvas.width - 200;
         staffPositions = Array.from({ length: 5 }, (_, i) => ({ x: 200, y: staffTopMargin + i * staffSpacing, width: staffWidth, height: 5 }));
-        betweenStaffPositions = Array.from({ length: 4 }, (_, i) => ({ x: 200, y: staffTopMargin + staffSpacing / 2 + i * staffSpacing, width: staffWidth, height: 5 }));
     }
 
     function isMobileDevice() {
@@ -144,14 +146,20 @@ window.onload = function() {
         const romanLabels = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX"];
         const spacing = staffWidth / (romanLabels.length + 1);
 
+        notePositions = []; // پاک کردن موقعیت‌های قبلی
+
         positions.forEach((y, i) => {
             const x = staffPositions[0].x + (i + 1) * spacing;
             let color = noteColors[i];
             let note = noteNames[i];
             noteLabels[romanLabels[i]] = { x: x, y: y - 40 };
 
+            // ذخیره موقعیت نت برای کلیک
+            const noteRadius = Math.min(canvas.width, canvas.height) / 25;
+            notePositions.push({ x, y, note, radius: noteRadius });
+
             context.beginPath();
-            context.arc(x, y, Math.min(canvas.width, canvas.height) / 25, 0, 2 * Math.PI);
+            context.arc(x, y, noteRadius, 0, 2 * Math.PI);
             context.fillStyle = color;
             context.fill();
             context.fillStyle = "#FFFFFF";
@@ -159,25 +167,22 @@ window.onload = function() {
             context.textAlign = "center";
             context.textBaseline = "middle";
             context.fillText(note !== "" ? (language === "fa" ? translations[note] : note) : "", x, y);
-
-            context.canvas.addEventListener('click', function(event) {
-                playSound(event, note, x, y);
-            });
-
-            context.canvas.addEventListener('touchstart', function(event) {
-                playSound(event, note, x, y);
-            });
         });
     }
 
-    function playSound(event, note, x, y) {
+    function handleNoteClick(event) {
         const rect = canvas.getBoundingClientRect();
-        const mouseX = event.clientX || event.touches[0].clientX;
-        const mouseY = event.clientY || event.touches[0].clientY;
+        const mouseX = (event.clientX || event.touches[0].clientX) - rect.left;
+        const mouseY = (event.clientY || event.touches[0].clientY) - rect.top;
 
-        if (mouseX >= x - 15 && mouseX <= x + 15 && mouseY >= y - 15 && mouseY <= y + 15) {
-            sounds[note].currentTime = 0;
-            sounds[note].play();
+        // بررسی کلیک روی نت‌ها
+        for (let notePos of notePositions) {
+            const distance = Math.sqrt(Math.pow(mouseX - notePos.x, 2) + Math.pow(mouseY - notePos.y, 2));
+            if (distance <= notePos.radius && notePos.note !== "") {
+                sounds[notePos.note].currentTime = 0;
+                sounds[notePos.note].play();
+                break;
+            }
         }
     }
 
@@ -217,6 +222,7 @@ window.onload = function() {
                 draggingKeyIndex = index;
                 draggingOffset.x = mouseX - keyRect.x;
                 draggingOffset.y = mouseY - keyRect.y;
+                draw(); // شروع animation loop
             }
         });
     }
@@ -233,6 +239,7 @@ window.onload = function() {
                 draggingKeyIndex = index;
                 draggingOffset.x = mouseX - keyRect.x;
                 draggingOffset.y = mouseY - keyRect.y;
+                draw(); // شروع animation loop
             }
         });
     }
@@ -250,6 +257,7 @@ window.onload = function() {
 
     function handleTouchMove(event) {
         if (dragging) {
+            event.preventDefault(); // جلوگیری از scroll ناخواسته
             const rect = canvas.getBoundingClientRect();
             const touch = event.touches[0];
             const mouseX = touch.clientX - rect.left;
@@ -261,34 +269,37 @@ window.onload = function() {
     }
 
     function handleMouseUp() {
-        dragging = false;
-        draggingKeyIndex = -1;
-    }
-
-    function handleTouchEnd() {
-        dragging = false;
-        draggingKeyIndex = -1;
-    }
-
-    function checkCollision(keyIndex) {
-        const keyRect = keyRects[keyIndex];
-        for (let i = 0; i < staffPositions.length; i++) {
-            const staffRect = staffPositions[i];
-            if (keyRect.x < staffRect.x + staffRect.width && keyRect.x + keyRect.size > staffRect.x && keyRect.y < staffRect.y + staffRect.height && keyRect.y + keyRect.size > staffRect.y) {
-                return i;
-            }
+        if (dragging) {
+            dragging = false;
+            draggingKeyIndex = -1;
+            redraw(); // رسم نهایی بعد از پایان drag
         }
-        return -1;
     }
+
+    function handleTouchEnd(event) {
+        const wasDragging = dragging;
+        if (dragging) {
+            dragging = false;
+            draggingKeyIndex = -1;
+            redraw(); // رسم نهایی بعد از پایان drag
+        }
+        // اگر در حال drag نبودیم، یعنی یک tap بوده، صدا پخش کن
+        if (!wasDragging) {
+            handleNoteClick(event);
+        }
+    }
+
 
     function checkMultipleKeys() {
         let keysOnLines = 0;
         keyRects.forEach(keyRect => {
-            staffPositions.forEach((staffRect) => {
-                if (keyRect.x < staffRect.x + staffRect.width && keyRect.x + keyRect.size > staffRect.x && keyRect.y < staffRect.y + staffRect.height && keyRect.y + keyRect.size > staffRect.y) {
-                    keysOnLines++;
-                }
-            });
+            if (!keyRect.hidden) { // نادیده گرفتن کلیدهای مخفی
+                staffPositions.forEach((staffRect) => {
+                    if (keyRect.x < staffRect.x + staffRect.width && keyRect.x + keyRect.size > staffRect.x && keyRect.y < staffRect.y + staffRect.height && keyRect.y + keyRect.size > staffRect.y) {
+                        keysOnLines++;
+                    }
+                });
+            }
         });
         return keysOnLines > 1;
     }
@@ -405,6 +416,8 @@ window.onload = function() {
         });
     }
 
+    let animationId = null;
+
     function draw() {
         context.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -420,12 +433,23 @@ window.onload = function() {
             drawNotes();
         }
 
-        requestAnimationFrame(draw);
+        // ادامه انیمیشن فقط اگر در حال drag هستیم
+        if (dragging) {
+            animationId = requestAnimationFrame(draw);
+        }
+    }
+
+    function redraw() {
+        // لغو انیمیشن قبلی اگر وجود دارد
+        if (animationId) {
+            cancelAnimationFrame(animationId);
+        }
+        draw();
     }
 
     window.addEventListener('resize', () => {
         resizeCanvas();
-        draw();
+        redraw();
     });
 
     window.addEventListener('orientationchange', () => {
@@ -443,6 +467,9 @@ window.onload = function() {
     canvas.addEventListener('touchmove', handleTouchMove);
     canvas.addEventListener('touchend', handleTouchEnd);
 
+    // Event listener برای کلیک روی نت‌ها (فقط برای موس)
+    canvas.addEventListener('click', handleNoteClick);
+
     if (isMobileDevice()) {
         document.body.style.fontSize = '14px';
         toggleNotesButton.style.fontSize = '36px';
@@ -452,5 +479,5 @@ window.onload = function() {
     }
 
     resizeCanvas();
-    draw();
+    redraw();
 };
