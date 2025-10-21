@@ -30,6 +30,7 @@ window.onload = function() {
     });
 
     let keySize, keySpacing, keyPositions, keyRects, staffTopMargin, staffSpacing, staffWidth, staffPositions;
+    let canvasLogicalWidth, canvasLogicalHeight; // ابعاد منطقی canvas (بدون dpr)
     let lineColors = Array(5).fill("#000000");
     let noteColors = Array(9).fill("#808080");
     let noteNames = Array(9).fill("");
@@ -96,26 +97,44 @@ window.onload = function() {
 
     function resizeCanvas() {
         // استفاده از visualViewport برای بهبود نمایش در موبایل
-        const width = window.visualViewport ? window.visualViewport.width : window.innerWidth;
-        const height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+        let width, height;
 
-        canvas.width = width;
-        canvas.height = height;
+        if (window.visualViewport) {
+            width = window.visualViewport.width;
+            height = window.visualViewport.height;
+        } else {
+            width = window.innerWidth || document.documentElement.clientWidth;
+            height = window.innerHeight || document.documentElement.clientHeight;
+        }
+
+        // تنظیم دقیق ابعاد canvas
+        canvas.style.width = width + 'px';
+        canvas.style.height = height + 'px';
+
+        // ذخیره ابعاد منطقی
+        canvasLogicalWidth = width;
+        canvasLogicalHeight = height;
+
+        // تنظیم resolution برای شارپ بودن
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        context.scale(dpr, dpr);
 
         if (isMobileDevice()) {
-            keySize = Math.min(canvas.width, canvas.height) / 6;
-            staffSpacing = canvas.height / 6.5;
+            keySize = Math.min(width, height) / 6;
+            staffSpacing = height / 6.5;
         } else {
-            keySize = Math.min(canvas.width, canvas.height) / 10;
-            staffSpacing = canvas.height / 6.5;
+            keySize = Math.min(width, height) / 10;
+            staffSpacing = height / 6.5;
         }
 
         keySpacing = keySize * 1.1;
         keyPositions = Array.from({ length: 7 }, (_, i) => [50, 50 + i * keySpacing]);
         keyRects = keyPositions.map(pos => ({ x: pos[0], y: pos[1], size: keySize }));
 
-        staffTopMargin = canvas.height / 10;
-        staffWidth = canvas.width - 200;
+        staffTopMargin = height / 10;
+        staffWidth = width - 200;
         staffPositions = Array.from({ length: 5 }, (_, i) => ({ x: 200, y: staffTopMargin + i * staffSpacing, width: staffWidth, height: 5 }));
     }
 
@@ -133,7 +152,7 @@ window.onload = function() {
             context.fillRect(pos.x, pos.y, pos.width, pos.height);
 
             context.fillStyle = "#000000";
-            context.font = `${Math.min(canvas.width, canvas.height) / 30}px Arial`;
+            context.font = `${Math.min(canvasLogicalWidth, canvasLogicalHeight) / 30}px Arial`;
             context.textAlign = "right";
             context.fillText(5 - i, pos.x - 10, pos.y + pos.height / 2 + 10);
         });
@@ -159,7 +178,7 @@ window.onload = function() {
             noteLabels[romanLabels[i]] = { x: x, y: y - 40 };
 
             // ذخیره موقعیت نت برای کلیک
-            const noteRadius = Math.min(canvas.width, canvas.height) / 25;
+            const noteRadius = Math.min(canvasLogicalWidth, canvasLogicalHeight) / 25;
             notePositions.push({ x, y, note, radius: noteRadius });
 
             context.beginPath();
@@ -167,7 +186,7 @@ window.onload = function() {
             context.fillStyle = color;
             context.fill();
             context.fillStyle = "#FFFFFF";
-            context.font = `${Math.min(canvas.width, canvas.height) / 20}px Arial`;
+            context.font = `${Math.min(canvasLogicalWidth, canvasLogicalHeight) / 20}px Arial`;
             context.textAlign = "center";
             context.textBaseline = "middle";
             context.fillText(note !== "" ? (language === "fa" ? translations[note] : note) : "", x, y);
@@ -209,7 +228,7 @@ window.onload = function() {
     function drawLabels() {
         for (let label in noteLabels) {
             context.fillStyle = "#000000";
-            context.font = `${Math.min(canvas.width, canvas.height) / 30}px Arial`;
+            context.font = `${Math.min(canvasLogicalWidth, canvasLogicalHeight) / 30}px Arial`;
             context.textAlign = "center";
             context.fillText(label, noteLabels[label].x, noteLabels[label].y);
         }
@@ -318,7 +337,7 @@ window.onload = function() {
         context.fillStyle = "#FF0000";
         context.font = "100px Arial";
         context.textAlign = "center";
-        context.fillText("Error", canvas.width / 2, canvas.height / 2);
+        context.fillText("Error", canvasLogicalWidth / 2, canvasLogicalHeight / 2);
     }
 
     function updateNotes() {
@@ -423,7 +442,7 @@ window.onload = function() {
     let animationId = null;
 
     function draw() {
-        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.clearRect(0, 0, canvasLogicalWidth, canvasLogicalHeight);
 
         drawStaffLines();
         drawKeys();
