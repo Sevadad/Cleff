@@ -4,14 +4,15 @@ window.onload = function() {
 
     const notes = ["C", "D", "E", "F", "G", "A", "B"];
 
+    // Modern gradient colors for glassmorphism
     const colors = {
-        "C": "#FF0000",
-        "D": "#00FF00",
-        "E": "#0000FF",
-        "F": "#FFFF00",
-        "G": "#00FFFF",
-        "A": "#FF00FF",
-        "B": "#800080"
+        "C": { start: "#FF6B6B", end: "#EE5A6F", glow: "rgba(255, 107, 107, 0.6)" },
+        "D": { start: "#4ECDC4", end: "#44A08D", glow: "rgba(78, 205, 196, 0.6)" },
+        "E": { start: "#95E1D3", end: "#6DD5FA", glow: "rgba(109, 213, 250, 0.6)" },
+        "F": { start: "#FFE66D", end: "#FDBB2D", glow: "rgba(253, 187, 45, 0.6)" },
+        "G": { start: "#C56CF0", end: "#A29BFE", glow: "rgba(194, 108, 240, 0.6)" },
+        "A": { start: "#FF9FF3", end: "#FECA57", glow: "rgba(254, 202, 87, 0.6)" },
+        "B": { start: "#48466D", end: "#3D3D69", glow: "rgba(72, 70, 109, 0.6)" }
     };
 
     const translations = {
@@ -31,14 +32,15 @@ window.onload = function() {
 
     let keySize, keySpacing, keyPositions, keyRects, staffTopMargin, staffSpacing, staffWidth, staffPositions;
     let canvasLogicalWidth, canvasLogicalHeight; // ابعاد منطقی canvas (بدون dpr)
-    let lineColors = Array(5).fill("#000000");
-    let noteColors = Array(9).fill("#808080");
+    let lineColors = Array(5).fill(null);
+    let noteColors = Array(9).fill(null);
     let noteNames = Array(9).fill("");
     let dragging = false;
     let draggingKeyIndex = -1;
     let draggingOffset = { x: 0, y: 0 };
     let noteLabels = {};
     let notePositions = []; // ذخیره موقعیت‌های نت‌ها برای کلیک
+    let notePulse = {}; // برای انیمیشن pulse
     let showLabels = false;
     let showNotes = true;
     let showMainKeys = false;
@@ -148,13 +150,47 @@ window.onload = function() {
 
     function drawStaffLines() {
         staffPositions.forEach((pos, i) => {
-            context.fillStyle = lineColors[i];
+            // رسم سایه خطوط
+            context.shadowColor = 'rgba(0, 0, 0, 0.3)';
+            context.shadowBlur = 8;
+            context.shadowOffsetX = 0;
+            context.shadowOffsetY = 2;
+
+            // رسم خط با gradient
+            const lineGradient = context.createLinearGradient(pos.x, 0, pos.x + pos.width, 0);
+            lineGradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
+            lineGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.5)');
+            lineGradient.addColorStop(1, 'rgba(255, 255, 255, 0.3)');
+
+            // اگر کلیدی روی این خط هست، glow اضافه کن
+            if (lineColors[i]) {
+                context.shadowColor = lineColors[i].glow;
+                context.shadowBlur = 20;
+
+                // رنگ خط با رنگ کلید
+                const colorGradient = context.createLinearGradient(pos.x, 0, pos.x + pos.width, 0);
+                colorGradient.addColorStop(0, lineColors[i].start);
+                colorGradient.addColorStop(1, lineColors[i].end);
+                context.fillStyle = colorGradient;
+            } else {
+                context.fillStyle = lineGradient;
+            }
+
             context.fillRect(pos.x, pos.y, pos.width, pos.height);
 
-            context.fillStyle = "#000000";
-            context.font = `${Math.min(canvasLogicalWidth, canvasLogicalHeight) / 30}px Arial`;
+            // Reset shadow
+            context.shadowColor = 'transparent';
+            context.shadowBlur = 0;
+
+            // شماره خط
+            context.fillStyle = "rgba(255, 255, 255, 0.8)";
+            context.font = `${Math.min(canvasLogicalWidth, canvasLogicalHeight) / 30}px 'Poppins', sans-serif`;
             context.textAlign = "right";
+            context.shadowColor = 'rgba(0, 0, 0, 0.5)';
+            context.shadowBlur = 4;
             context.fillText(5 - i, pos.x - 10, pos.y + pos.height / 2 + 10);
+            context.shadowColor = 'transparent';
+            context.shadowBlur = 0;
         });
     }
 
@@ -173,23 +209,76 @@ window.onload = function() {
 
         positions.forEach((y, i) => {
             const x = staffPositions[0].x + (i + 1) * spacing;
-            let color = noteColors[i];
+            let colorObj = noteColors[i];
             let note = noteNames[i];
             noteLabels[romanLabels[i]] = { x: x, y: y - 40 };
 
-            // ذخیره موقعیت نت برای کلیک
             const noteRadius = Math.min(canvasLogicalWidth, canvasLogicalHeight) / 25;
-            notePositions.push({ x, y, note, radius: noteRadius });
 
-            context.beginPath();
-            context.arc(x, y, noteRadius, 0, 2 * Math.PI);
-            context.fillStyle = color;
-            context.fill();
-            context.fillStyle = "#FFFFFF";
-            context.font = `${Math.min(canvasLogicalWidth, canvasLogicalHeight) / 20}px Arial`;
-            context.textAlign = "center";
-            context.textBaseline = "middle";
-            context.fillText(note !== "" ? (language === "fa" ? translations[note] : note) : "", x, y);
+            // محاسبه pulse برای انیمیشن
+            let scale = 1;
+            if (notePulse[i] && Date.now() - notePulse[i] < 500) {
+                const elapsed = Date.now() - notePulse[i];
+                scale = 1 + Math.sin((elapsed / 500) * Math.PI) * 0.3;
+            }
+
+            // ذخیره موقعیت نت برای کلیک
+            notePositions.push({ x, y, note, radius: noteRadius * scale, index: i });
+
+            if (note !== "") {
+                const currentRadius = noteRadius * scale;
+
+                // Shadow and glow effect
+                context.shadowColor = colorObj.glow;
+                context.shadowBlur = 20 * scale;
+                context.shadowOffsetX = 0;
+                context.shadowOffsetY = 0;
+
+                // رسم دایره با gradient
+                const gradient = context.createRadialGradient(x, y, 0, x, y, currentRadius);
+                gradient.addColorStop(0, colorObj.start);
+                gradient.addColorStop(1, colorObj.end);
+
+                context.beginPath();
+                context.arc(x, y, currentRadius, 0, 2 * Math.PI);
+                context.fillStyle = gradient;
+                context.fill();
+
+                // Glassmorphism border
+                context.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                context.lineWidth = 2;
+                context.stroke();
+
+                // Reset shadow
+                context.shadowColor = 'transparent';
+                context.shadowBlur = 0;
+
+                // نوشتن نام نت
+                context.fillStyle = "#FFFFFF";
+                context.font = `${Math.min(canvasLogicalWidth, canvasLogicalHeight) / 20}px 'Vazirmatn', 'Poppins', sans-serif`;
+                context.fontWeight = '600';
+                context.textAlign = "center";
+                context.textBaseline = "middle";
+                context.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                context.shadowBlur = 4;
+                context.fillText(language === "fa" ? translations[note] : note, x, y);
+                context.shadowColor = 'transparent';
+                context.shadowBlur = 0;
+            } else {
+                // نت خالی - دایره شفاف
+                const gradient = context.createRadialGradient(x, y, 0, x, y, noteRadius);
+                gradient.addColorStop(0, 'rgba(255, 255, 255, 0.1)');
+                gradient.addColorStop(1, 'rgba(255, 255, 255, 0.05)');
+
+                context.beginPath();
+                context.arc(x, y, noteRadius, 0, 2 * Math.PI);
+                context.fillStyle = gradient;
+                context.fill();
+
+                context.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                context.lineWidth = 1;
+                context.stroke();
+            }
         });
     }
 
@@ -202,35 +291,102 @@ window.onload = function() {
         for (let notePos of notePositions) {
             const distance = Math.sqrt(Math.pow(mouseX - notePos.x, 2) + Math.pow(mouseY - notePos.y, 2));
             if (distance <= notePos.radius && notePos.note !== "") {
+                // شروع انیمیشن pulse
+                notePulse[notePos.index] = Date.now();
+
+                // پخش صدا
                 sounds[notePos.note].currentTime = 0;
                 sounds[notePos.note].play();
+
+                // شروع animation loop برای pulse
+                animateNotePulse();
                 break;
             }
+        }
+    }
+
+    function animateNotePulse() {
+        redraw();
+        // ادامه انیمیشن تا زمانی که pulse فعال باشه
+        const hasPulse = Object.values(notePulse).some(time => Date.now() - time < 500);
+        if (hasPulse) {
+            requestAnimationFrame(animateNotePulse);
         }
     }
 
     function drawKeys() {
         keyRects.forEach((rect, i) => {
             if (!rect.hidden) {
+                const centerX = rect.x + rect.size / 2;
+                const centerY = rect.y + rect.size / 2;
+                const radius = rect.size / 2;
+                const colorObj = colors[notes[i]];
+
+                // Scale effect for dragging
+                const scale = (dragging && draggingKeyIndex === i) ? 1.1 : 1;
+                const currentRadius = radius * scale;
+
+                // Glow effect
+                context.shadowColor = colorObj.glow;
+                context.shadowBlur = dragging && draggingKeyIndex === i ? 30 : 15;
+                context.shadowOffsetX = 0;
+                context.shadowOffsetY = 0;
+
+                // رسم دایره کلید با gradient
+                const gradient = context.createRadialGradient(
+                    centerX, centerY, 0,
+                    centerX, centerY, currentRadius
+                );
+                gradient.addColorStop(0, colorObj.start);
+                gradient.addColorStop(1, colorObj.end);
+
                 context.beginPath();
-                context.arc(rect.x + rect.size / 2, rect.y + rect.size / 2, rect.size / 2, 0, 2 * Math.PI);
-                context.fillStyle = colors[notes[i]];
+                context.arc(centerX, centerY, currentRadius, 0, 2 * Math.PI);
+                context.fillStyle = gradient;
                 context.fill();
+
+                // Glassmorphism border
+                context.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                context.lineWidth = 3;
+                context.stroke();
+
+                // Inner glow
+                context.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                context.lineWidth = 1;
+                context.beginPath();
+                context.arc(centerX, centerY, currentRadius - 3, 0, 2 * Math.PI);
+                context.stroke();
+
+                // Reset shadow
+                context.shadowColor = 'transparent';
+                context.shadowBlur = 0;
+
+                // نوشتن نام کلید
                 context.fillStyle = "#FFFFFF";
-                context.font = `${rect.size / 1.5}px Arial`;
+                context.font = `bold ${rect.size / 1.8}px 'Poppins', sans-serif`;
                 context.textAlign = "center";
                 context.textBaseline = "middle";
-                context.fillText(notes[i], rect.x + rect.size / 2, rect.y + rect.size / 2);
+                context.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                context.shadowBlur = 6;
+                context.fillText(notes[i], centerX, centerY);
+
+                // Reset shadow
+                context.shadowColor = 'transparent';
+                context.shadowBlur = 0;
             }
         });
     }
 
     function drawLabels() {
         for (let label in noteLabels) {
-            context.fillStyle = "#000000";
-            context.font = `${Math.min(canvasLogicalWidth, canvasLogicalHeight) / 30}px Arial`;
+            context.fillStyle = "rgba(255, 255, 255, 0.9)";
+            context.font = `bold ${Math.min(canvasLogicalWidth, canvasLogicalHeight) / 30}px 'Poppins', sans-serif`;
             context.textAlign = "center";
+            context.shadowColor = 'rgba(0, 0, 0, 0.5)';
+            context.shadowBlur = 6;
             context.fillText(label, noteLabels[label].x, noteLabels[label].y);
+            context.shadowColor = 'transparent';
+            context.shadowBlur = 0;
         }
     }
 
@@ -328,16 +484,55 @@ window.onload = function() {
     }
 
     function resetLineColors() {
-        lineColors.fill("#000000");
-        noteColors.fill("#808080");
+        lineColors.fill(null);
+        noteColors.fill(null);
         noteNames.fill("");
     }
 
+    function setNoteColorsFromNames() {
+        // تنظیم رنگ‌های نت‌ها براساس نام‌هایشان
+        noteColors = noteNames.map(name => name ? colors[name] : null);
+    }
+
     function displayError() {
-        context.fillStyle = "#FF0000";
-        context.font = "100px Arial";
+        // Glassmorphism error box
+        const boxWidth = Math.min(400, canvasLogicalWidth * 0.8);
+        const boxHeight = 150;
+        const boxX = (canvasLogicalWidth - boxWidth) / 2;
+        const boxY = (canvasLogicalHeight - boxHeight) / 2;
+
+        // Shadow
+        context.shadowColor = 'rgba(0, 0, 0, 0.3)';
+        context.shadowBlur = 20;
+
+        // Glass background
+        context.fillStyle = 'rgba(255, 255, 255, 0.1)';
+        context.fillRect(boxX, boxY, boxWidth, boxHeight);
+
+        // Border
+        context.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        context.lineWidth = 2;
+        context.strokeRect(boxX, boxY, boxWidth, boxHeight);
+
+        context.shadowColor = 'transparent';
+        context.shadowBlur = 0;
+
+        // Error text with glow
+        context.fillStyle = "#FF6B6B";
+        context.font = `bold ${Math.min(canvasLogicalWidth, canvasLogicalHeight) / 12}px 'Poppins', sans-serif`;
         context.textAlign = "center";
-        context.fillText("Error", canvasLogicalWidth / 2, canvasLogicalHeight / 2);
+        context.shadowColor = 'rgba(255, 107, 107, 0.8)';
+        context.shadowBlur = 20;
+        context.fillText("Error!", canvasLogicalWidth / 2, canvasLogicalHeight / 2 - 10);
+
+        // Sub text
+        context.font = `${Math.min(canvasLogicalWidth, canvasLogicalHeight) / 25}px 'Poppins', sans-serif`;
+        context.fillStyle = "rgba(255, 255, 255, 0.9)";
+        context.shadowBlur = 10;
+        context.fillText("Only one key per line", canvasLogicalWidth / 2, canvasLogicalHeight / 2 + 30);
+
+        context.shadowColor = 'transparent';
+        context.shadowBlur = 0;
     }
 
     function updateNotes() {
@@ -437,6 +632,8 @@ window.onload = function() {
                 }
             });
         });
+        // تنظیم رنگ‌های نت‌ها براساس noteNames
+        setNoteColorsFromNames();
     }
 
     let animationId = null;
