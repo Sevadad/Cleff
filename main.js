@@ -4,15 +4,15 @@ window.onload = function() {
 
     const notes = ["C", "D", "E", "F", "G", "A", "B"];
 
-    // Modern gradient colors for glassmorphism
+    // Modern gradient colors - بازگشت به رنگ‌های اصلی با gradient
     const colors = {
-        "C": { start: "#FF6B6B", end: "#EE5A6F", glow: "rgba(255, 107, 107, 0.6)" },
-        "D": { start: "#4ECDC4", end: "#44A08D", glow: "rgba(78, 205, 196, 0.6)" },
-        "E": { start: "#95E1D3", end: "#6DD5FA", glow: "rgba(109, 213, 250, 0.6)" },
-        "F": { start: "#FFE66D", end: "#FDBB2D", glow: "rgba(253, 187, 45, 0.6)" },
-        "G": { start: "#C56CF0", end: "#A29BFE", glow: "rgba(194, 108, 240, 0.6)" },
-        "A": { start: "#FF9FF3", end: "#FECA57", glow: "rgba(254, 202, 87, 0.6)" },
-        "B": { start: "#48466D", end: "#3D3D69", glow: "rgba(72, 70, 109, 0.6)" }
+        "C": { start: "#FF0000", end: "#CC0000", glow: "rgba(255, 0, 0, 0.6)" },      // قرمز
+        "D": { start: "#00FF00", end: "#00CC00", glow: "rgba(0, 255, 0, 0.6)" },      // سبز
+        "E": { start: "#0000FF", end: "#0000CC", glow: "rgba(0, 0, 255, 0.6)" },      // آبی
+        "F": { start: "#FFFF00", end: "#CCCC00", glow: "rgba(255, 255, 0, 0.6)" },    // زرد
+        "G": { start: "#00FFFF", end: "#00CCCC", glow: "rgba(0, 255, 255, 0.6)" },    // فیروزه‌ای
+        "A": { start: "#FF00FF", end: "#CC00CC", glow: "rgba(255, 0, 255, 0.6)" },    // صورتی
+        "B": { start: "#800080", end: "#600060", glow: "rgba(128, 0, 128, 0.6)" }     // بنفش
     };
 
     const translations = {
@@ -35,6 +35,7 @@ window.onload = function() {
     let lineColors = Array(5).fill(null);
     let noteColors = Array(9).fill(null);
     let noteNames = Array(9).fill("");
+    let highlightedNoteIndex = -1; // فقط این نت رنگی می‌شود
     let dragging = false;
     let draggingKeyIndex = -1;
     let draggingOffset = { x: 0, y: 0 };
@@ -151,26 +152,27 @@ window.onload = function() {
     function drawStaffLines() {
         staffPositions.forEach((pos, i) => {
             // رسم سایه خطوط
-            context.shadowColor = 'rgba(0, 0, 0, 0.3)';
-            context.shadowBlur = 8;
+            context.shadowColor = 'rgba(0, 0, 0, 0.4)';
+            context.shadowBlur = 10;
             context.shadowOffsetX = 0;
-            context.shadowOffsetY = 2;
+            context.shadowOffsetY = 3;
 
-            // رسم خط با gradient
+            // رسم خط با gradient (پررنگ‌تر و تیره‌تر)
             const lineGradient = context.createLinearGradient(pos.x, 0, pos.x + pos.width, 0);
-            lineGradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
-            lineGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.5)');
-            lineGradient.addColorStop(1, 'rgba(255, 255, 255, 0.3)');
+            lineGradient.addColorStop(0, 'rgba(40, 40, 80, 0.7)');
+            lineGradient.addColorStop(0.5, 'rgba(60, 60, 100, 0.9)');
+            lineGradient.addColorStop(1, 'rgba(40, 40, 80, 0.7)');
 
-            // اگر کلیدی روی این خط هست، glow اضافه کن
+            // اگر کلیدی روی این خط هست، glow و رنگ اضافه کن
             if (lineColors[i]) {
                 context.shadowColor = lineColors[i].glow;
-                context.shadowBlur = 20;
+                context.shadowBlur = 25;
 
-                // رنگ خط با رنگ کلید
+                // رنگ خط با رنگ کلید (پررنگ‌تر)
                 const colorGradient = context.createLinearGradient(pos.x, 0, pos.x + pos.width, 0);
                 colorGradient.addColorStop(0, lineColors[i].start);
-                colorGradient.addColorStop(1, lineColors[i].end);
+                colorGradient.addColorStop(0.5, lineColors[i].end);
+                colorGradient.addColorStop(1, lineColors[i].start);
                 context.fillStyle = colorGradient;
             } else {
                 context.fillStyle = lineGradient;
@@ -182,12 +184,12 @@ window.onload = function() {
             context.shadowColor = 'transparent';
             context.shadowBlur = 0;
 
-            // شماره خط
-            context.fillStyle = "rgba(255, 255, 255, 0.8)";
-            context.font = `${Math.min(canvasLogicalWidth, canvasLogicalHeight) / 30}px 'Poppins', sans-serif`;
+            // شماره خط (پررنگ‌تر)
+            context.fillStyle = "rgba(255, 255, 255, 0.95)";
+            context.font = `bold ${Math.min(canvasLogicalWidth, canvasLogicalHeight) / 30}px 'Poppins', sans-serif`;
             context.textAlign = "right";
-            context.shadowColor = 'rgba(0, 0, 0, 0.5)';
-            context.shadowBlur = 4;
+            context.shadowColor = 'rgba(0, 0, 0, 0.7)';
+            context.shadowBlur = 6;
             context.fillText(5 - i, pos.x - 10, pos.y + pos.height / 2 + 10);
             context.shadowColor = 'transparent';
             context.shadowBlur = 0;
@@ -209,11 +211,13 @@ window.onload = function() {
 
         positions.forEach((y, i) => {
             const x = staffPositions[0].x + (i + 1) * spacing;
-            let colorObj = noteColors[i];
             let note = noteNames[i];
             noteLabels[romanLabels[i]] = { x: x, y: y - 40 };
 
             const noteRadius = Math.min(canvasLogicalWidth, canvasLogicalHeight) / 25;
+            const radiusX = noteRadius * 1.2; // عرض بیضی
+            const radiusY = noteRadius * 0.85; // ارتفاع بیضی
+            const rotation = -20 * Math.PI / 180; // زاویه مایل 20 درجه
 
             // محاسبه pulse برای انیمیشن
             let scale = 1;
@@ -226,58 +230,117 @@ window.onload = function() {
             notePositions.push({ x, y, note, radius: noteRadius * scale, index: i });
 
             if (note !== "") {
-                const currentRadius = noteRadius * scale;
+                const currentRadiusX = radiusX * scale;
+                const currentRadiusY = radiusY * scale;
 
-                // Shadow and glow effect
-                context.shadowColor = colorObj.glow;
-                context.shadowBlur = 20 * scale;
+                // فقط نت همنام (highlighted) رنگی می‌شود
+                const isHighlighted = (i === highlightedNoteIndex);
+                const colorObj = isHighlighted ? noteColors[i] : null;
+
+                if (isHighlighted && colorObj) {
+                    // نت رنگی - نت همنام کلید
+                    context.shadowColor = colorObj.glow;
+                    context.shadowBlur = 20 * scale;
+                    context.shadowOffsetX = 0;
+                    context.shadowOffsetY = 0;
+
+                    // رسم بیضی با gradient
+                    const gradient = context.createRadialGradient(x, y, 0, x, y, currentRadiusX);
+                    gradient.addColorStop(0, colorObj.start);
+                    gradient.addColorStop(1, colorObj.end);
+
+                    context.save();
+                    context.translate(x, y);
+                    context.rotate(rotation);
+                    context.beginPath();
+                    context.ellipse(0, 0, currentRadiusX, currentRadiusY, 0, 0, 2 * Math.PI);
+                    context.fillStyle = gradient;
+                    context.fill();
+
+                    // Border
+                    context.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                    context.lineWidth = 2;
+                    context.stroke();
+                    context.restore();
+
+                    context.shadowColor = 'transparent';
+                    context.shadowBlur = 0;
+
+                    // نوشتن نام نت
+                    context.fillStyle = "#FFFFFF";
+                    context.font = `bold ${Math.min(canvasLogicalWidth, canvasLogicalHeight) / 20}px 'Vazirmatn', 'Poppins', sans-serif`;
+                    context.textAlign = "center";
+                    context.textBaseline = "middle";
+                    context.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                    context.shadowBlur = 4;
+                    context.fillText(language === "fa" ? translations[note] : note, x, y);
+                    context.shadowColor = 'transparent';
+                    context.shadowBlur = 0;
+                } else {
+                    // نت خاکستری - بقیه نت‌ها
+                    const gradient = context.createRadialGradient(x, y, 0, x, y, currentRadiusX);
+                    gradient.addColorStop(0, 'rgba(180, 180, 180, 0.4)');
+                    gradient.addColorStop(1, 'rgba(120, 120, 120, 0.3)');
+
+                    context.save();
+                    context.translate(x, y);
+                    context.rotate(rotation);
+                    context.beginPath();
+                    context.ellipse(0, 0, currentRadiusX, currentRadiusY, 0, 0, 2 * Math.PI);
+                    context.fillStyle = gradient;
+                    context.fill();
+
+                    // Border
+                    context.strokeStyle = 'rgba(200, 200, 200, 0.5)';
+                    context.lineWidth = 1.5;
+                    context.stroke();
+                    context.restore();
+
+                    // نوشتن نام نت
+                    context.fillStyle = "rgba(220, 220, 220, 0.8)";
+                    context.font = `${Math.min(canvasLogicalWidth, canvasLogicalHeight) / 22}px 'Vazirmatn', 'Poppins', sans-serif`;
+                    context.textAlign = "center";
+                    context.textBaseline = "middle";
+                    context.fillText(language === "fa" ? translations[note] : note, x, y);
+                }
+            } else {
+                // نت خالی - بیضی شفاف با border واضح
+                context.save();
+                context.translate(x, y);
+                context.rotate(rotation);
+
+                // سایه برای وضوح بیشتر
+                context.shadowColor = 'rgba(0, 0, 0, 0.4)';
+                context.shadowBlur = 10;
                 context.shadowOffsetX = 0;
-                context.shadowOffsetY = 0;
-
-                // رسم دایره با gradient
-                const gradient = context.createRadialGradient(x, y, 0, x, y, currentRadius);
-                gradient.addColorStop(0, colorObj.start);
-                gradient.addColorStop(1, colorObj.end);
+                context.shadowOffsetY = 2;
 
                 context.beginPath();
-                context.arc(x, y, currentRadius, 0, 2 * Math.PI);
+                context.ellipse(0, 0, radiusX, radiusY, 0, 0, 2 * Math.PI);
+
+                // پر کردن با شیشه‌ای روشن‌تر
+                const gradient = context.createRadialGradient(0, 0, 0, 0, 0, radiusX);
+                gradient.addColorStop(0, 'rgba(255, 255, 255, 0.25)');
+                gradient.addColorStop(1, 'rgba(255, 255, 255, 0.15)');
                 context.fillStyle = gradient;
                 context.fill();
 
-                // Glassmorphism border
-                context.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-                context.lineWidth = 2;
+                // Border پررنگ برای visibility
+                context.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                context.lineWidth = 2.5;
                 context.stroke();
 
-                // Reset shadow
-                context.shadowColor = 'transparent';
-                context.shadowBlur = 0;
-
-                // نوشتن نام نت
-                context.fillStyle = "#FFFFFF";
-                context.font = `${Math.min(canvasLogicalWidth, canvasLogicalHeight) / 20}px 'Vazirmatn', 'Poppins', sans-serif`;
-                context.fontWeight = '600';
-                context.textAlign = "center";
-                context.textBaseline = "middle";
-                context.shadowColor = 'rgba(0, 0, 0, 0.5)';
-                context.shadowBlur = 4;
-                context.fillText(language === "fa" ? translations[note] : note, x, y);
-                context.shadowColor = 'transparent';
-                context.shadowBlur = 0;
-            } else {
-                // نت خالی - دایره شفاف
-                const gradient = context.createRadialGradient(x, y, 0, x, y, noteRadius);
-                gradient.addColorStop(0, 'rgba(255, 255, 255, 0.1)');
-                gradient.addColorStop(1, 'rgba(255, 255, 255, 0.05)');
-
+                // Inner border برای جلوه بهتر
                 context.beginPath();
-                context.arc(x, y, noteRadius, 0, 2 * Math.PI);
-                context.fillStyle = gradient;
-                context.fill();
-
-                context.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                context.ellipse(0, 0, radiusX - 2, radiusY - 2, 0, 0, 2 * Math.PI);
+                context.strokeStyle = 'rgba(255, 255, 255, 0.3)';
                 context.lineWidth = 1;
                 context.stroke();
+
+                context.restore();
+
+                context.shadowColor = 'transparent';
+                context.shadowBlur = 0;
             }
         });
     }
@@ -487,6 +550,7 @@ window.onload = function() {
         lineColors.fill(null);
         noteColors.fill(null);
         noteNames.fill("");
+        highlightedNoteIndex = -1; // reset highlighted note
     }
 
     function setNoteColorsFromNames() {
@@ -543,6 +607,7 @@ window.onload = function() {
                     lineColors[staffIndex] = colors[notes[keyIndex]];
                     noteColors[(4 - staffIndex) * 2] = colors[notes[keyIndex]];
                     noteNames[(4 - staffIndex) * 2] = notes[keyIndex];
+                    highlightedNoteIndex = (4 - staffIndex) * 2; // فقط این نت رنگی می‌شود
 
                     if (notes[keyIndex] === "C") {
                         if (staffIndex === 0) {
