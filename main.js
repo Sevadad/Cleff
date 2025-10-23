@@ -648,7 +648,7 @@ window.onload = function() {
                     if (notes[keyIndex] === "C") {
                         if (staffIndex === 0) {
                             noteNames = ["B", "C", "D", "E", "F", "G", "A", "B", "C"];
-                            noteWithOctaves = ["B4", "C5", "D5", "E5", "F5", "G5", "A5", "B5", "C6"];
+                            noteWithOctaves = ["B3", "C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"];
                         } else if (staffIndex === 1) {
                             noteNames = ["D", "E", "F", "G", "A", "B", "C", "D", "E"];
                             noteWithOctaves = ["D3", "E3", "F3", "G3", "A3", "B3", "C4", "D4", "E4"];
@@ -657,10 +657,10 @@ window.onload = function() {
                             noteWithOctaves = ["F3", "G3", "A3", "B3", "C4", "D4", "E4", "F4", "G4"];
                         } else if (staffIndex === 3) {
                             noteNames = ["A", "B", "C", "D", "E", "F", "G", "A", "B"];
-                            noteWithOctaves = ["A2", "B2", "C3", "D3", "E3", "F3", "G3", "A3", "B3"];
+                            noteWithOctaves = ["A3", "B3", "C4", "D4", "E4", "F4", "G4", "A4", "B4"];
                         } else if (staffIndex === 4) {
                             noteNames = ["C", "D", "E", "F", "G", "A", "B", "C", "D"];
-                            noteWithOctaves = ["C2", "D2", "E2", "F2", "G2", "A2", "B2", "C3", "D3"];
+                            noteWithOctaves = ["C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5", "D5"];
                         }
                     } else if (notes[keyIndex] === "D") {
                         if (staffIndex === 0) {
