@@ -517,7 +517,8 @@ window.onload = function() {
         const mouseY = event.clientY - rect.top;
 
         keyRects.forEach((keyRect, index) => {
-            if (mouseX > keyRect.x && mouseX < keyRect.x + keyRect.size && mouseY > keyRect.y && mouseY < keyRect.y + keyRect.size) {
+            // فقط کلیدهای visible را می‌توان drag کرد
+            if (!keyRect.hidden && mouseX > keyRect.x && mouseX < keyRect.x + keyRect.size && mouseY > keyRect.y && mouseY < keyRect.y + keyRect.size) {
                 dragging = true;
                 draggingKeyIndex = index;
                 draggingOffset.x = mouseX - keyRect.x;
@@ -534,7 +535,8 @@ window.onload = function() {
         const mouseY = touch.clientY - rect.top;
 
         keyRects.forEach((keyRect, index) => {
-            if (mouseX > keyRect.x && mouseX < keyRect.x + keyRect.size && mouseY > keyRect.y && mouseY < keyRect.y + keyRect.size) {
+            // فقط کلیدهای visible را می‌توان drag کرد
+            if (!keyRect.hidden && mouseX > keyRect.x && mouseX < keyRect.x + keyRect.size && mouseY > keyRect.y && mouseY < keyRect.y + keyRect.size) {
                 dragging = true;
                 draggingKeyIndex = index;
                 draggingOffset.x = mouseX - keyRect.x;
@@ -661,8 +663,10 @@ window.onload = function() {
     function updateNotes() {
         resetLineColors();
         keyRects.forEach((keyRect, keyIndex) => {
-            staffPositions.forEach((staffRect, staffIndex) => {
-                if (keyRect.x < staffRect.x + staffRect.width && keyRect.x + keyRect.size > staffRect.x && keyRect.y < staffRect.y + staffRect.height && keyRect.y + keyRect.size > staffRect.y) {
+            // فقط کلیدهای visible را در نظر بگیریم
+            if (!keyRect.hidden) {
+                staffPositions.forEach((staffRect, staffIndex) => {
+                    if (keyRect.x < staffRect.x + staffRect.width && keyRect.x + keyRect.size > staffRect.x && keyRect.y < staffRect.y + staffRect.height && keyRect.y + keyRect.size > staffRect.y) {
                     lineColors[staffIndex] = colors[notes[keyIndex]];
                     noteColors[(4 - staffIndex) * 2] = colors[notes[keyIndex]];
                     noteNames[(4 - staffIndex) * 2] = notes[keyIndex];
@@ -790,6 +794,7 @@ window.onload = function() {
                     }
                 }
             });
+            }
         });
         // تنظیم رنگ‌های نت‌ها براساس noteNames
         setNoteColorsFromNames();
