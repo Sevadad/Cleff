@@ -154,21 +154,44 @@ window.onload = function() {
         canvas.height = height * dpr;
         context.scale(dpr, dpr);
 
-        if (isMobileDevice()) {
-            keySize = Math.min(width, height) / 6;
-            staffSpacing = height / 6.5;
+        const isLandscape = width > height;
+        const isMobile = isMobileDevice();
+
+        // Optimized sizes for better layout and future expansion
+        if (isMobile) {
+            if (isLandscape) {
+                // Mobile Landscape - compact layout
+                keySize = Math.min(width, height) / 10;
+                staffSpacing = height / 8;
+                staffTopMargin = height / 15;
+            } else {
+                // Mobile Portrait - standard layout
+                keySize = Math.min(width, height) / 8;
+                staffSpacing = height / 9;
+                staffTopMargin = height / 12;
+            }
         } else {
-            keySize = Math.min(width, height) / 10;
-            staffSpacing = height / 6.5;
+            // Desktop - compact and standard layout
+            keySize = Math.min(width, height) / 12;
+            staffSpacing = height / 10;
+            staffTopMargin = height / 12;
         }
 
-        keySpacing = keySize * 1.1;
-        keyPositions = Array.from({ length: 7 }, (_, i) => [50, 50 + i * keySpacing]);
+        keySpacing = keySize * 1.15;
+        const leftMargin = isMobile && isLandscape ? 30 : 50;
+        const topMargin = isMobile && isLandscape ? 20 : 50;
+
+        keyPositions = Array.from({ length: 7 }, (_, i) => [leftMargin, topMargin + i * keySpacing]);
         keyRects = keyPositions.map(pos => ({ x: pos[0], y: pos[1], size: keySize }));
 
-        staffTopMargin = height / 10;
-        staffWidth = width - 200;
-        staffPositions = Array.from({ length: 5 }, (_, i) => ({ x: 200, y: staffTopMargin + i * staffSpacing, width: staffWidth, height: 5 }));
+        const staffLeftMargin = keySize + leftMargin + 40;
+        staffWidth = width - staffLeftMargin - (isMobile ? 20 : 50);
+        staffPositions = Array.from({ length: 5 }, (_, i) => ({
+            x: staffLeftMargin,
+            y: staffTopMargin + i * staffSpacing,
+            width: staffWidth,
+            height: isMobile ? 3 : 4
+        }));
     }
 
     function isMobileDevice() {
