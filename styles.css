@@ -11,11 +11,11 @@
 }
 
 :root {
-    /* Glassmorphism Colors */
-    --bg-gradient-1: #667eea;
-    --bg-gradient-2: #764ba2;
-    --bg-gradient-3: #f093fb;
-    --bg-gradient-4: #4facfe;
+    /* Glassmorphism Colors - Lighter and more vibrant */
+    --bg-gradient-1: #a8edea;
+    --bg-gradient-2: #fed6e3;
+    --bg-gradient-3: #d299c2;
+    --bg-gradient-4: #fef9d7;
 
     /* Glass effect */
     --glass-bg: rgba(255, 255, 255, 0.1);
@@ -67,10 +67,10 @@ body {
     -webkit-overflow-scrolling: touch;
     touch-action: none;
 
-    /* Animated Gradient Background */
-    background: linear-gradient(-45deg, #667eea, #764ba2, #f093fb, #4facfe);
+    /* Animated Gradient Background - Lighter and more dynamic */
+    background: linear-gradient(-45deg, #a8edea, #fed6e3, #d299c2, #fef9d7, #c5e3f6);
     background-size: 400% 400%;
-    animation: gradientShift 15s ease infinite;
+    animation: gradientShift 12s ease infinite;
 }
 
 @keyframes gradientShift {
@@ -114,13 +114,13 @@ button {
     position: relative;
     overflow: hidden;
 
-    /* Glassmorphism effect */
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    /* Glassmorphism effect - darker for better contrast on light background */
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
 
     /* Border with gradient */
-    border: 1px solid rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.4);
     border-radius: 16px;
 
     /* Shadow */
@@ -129,11 +129,11 @@ button {
         inset 0 0 20px rgba(255, 255, 255, 0.05);
 
     /* Text */
-    color: white;
+    color: #2d3748;
     font-family: 'Vazirmatn', 'Poppins', sans-serif;
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 600;
-    padding: 14px 20px;
+    padding: 12px 18px;
 
     /* Layout */
     flex: 1 1 45%;
@@ -191,13 +191,13 @@ button:active::before {
         bottom: 10px;
         right: 10px;
         left: 10px;
-        gap: 8px;
+        gap: 6px;
     }
 
     button {
-        font-size: 14px;
-        padding: 12px 16px;
-        border-radius: 12px;
+        font-size: 12px;
+        padding: 10px 14px;
+        border-radius: 10px;
     }
 }
 
@@ -206,14 +206,32 @@ button:active::before {
         bottom: 8px;
         right: 8px;
         left: 8px;
-        gap: 6px;
+        gap: 5px;
     }
 
     button {
-        font-size: 12px;
-        padding: 10px 12px;
+        font-size: 11px;
+        padding: 8px 10px;
         flex: 1 1 48%;
-        border-radius: 10px;
+        border-radius: 8px;
+    }
+}
+
+/* Landscape mode for mobile */
+@media only screen and (max-height: 500px) and (orientation: landscape) {
+    #buttonContainer {
+        bottom: 5px;
+        right: 5px;
+        left: auto;
+        max-width: 60%;
+        gap: 4px;
+    }
+
+    button {
+        font-size: 10px;
+        padding: 6px 10px;
+        flex: 1 1 48%;
+        border-radius: 8px;
     }
 }
 
