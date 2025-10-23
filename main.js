@@ -25,16 +25,45 @@ window.onload = function() {
         "B": "سی"
     };
 
-    const sounds = {};
-    notes.forEach(note => {
-        sounds[note] = new Audio(`sounds/${note}.mp3`);
-    });
+    // تنظیم Tone.js synth برای تولید صدای پیانو
+    let synth = null;
+
+    // تعریف نت‌های مبنا برای هر کلید
+    const keyBaseNotes = {
+        "F": "F3",
+        "A": "A3",
+        "B": "B3",
+        "C": "C4",
+        "D": "D4",
+        "E": "E4",
+        "G": "G4"
+    };
+
+    // ترتیب نت‌ها در موسیقی
+    const noteSequence = ["C", "D", "E", "F", "G", "A", "B"];
+
+    // راه‌اندازی AudioContext (برای موبایل نیاز به تعامل کاربر است)
+    async function initAudio() {
+        if (!synth) {
+            await Tone.start();
+            synth = new Tone.Synth({
+                oscillator: { type: "triangle" },
+                envelope: {
+                    attack: 0.005,
+                    decay: 0.1,
+                    sustain: 0.3,
+                    release: 1
+                }
+            }).toDestination();
+        }
+    }
 
     let keySize, keySpacing, keyPositions, keyRects, staffTopMargin, staffSpacing, staffWidth, staffPositions;
     let canvasLogicalWidth, canvasLogicalHeight; // ابعاد منطقی canvas (بدون dpr)
     let lineColors = Array(5).fill(null);
     let noteColors = Array(9).fill(null);
     let noteNames = Array(9).fill("");
+    let noteWithOctaves = Array(9).fill(""); // ذخیره نت‌ها با اکتاو (مثل C4, G5)
     let highlightedNoteIndex = -1; // فقط این نت رنگی می‌شود
     let dragging = false;
     let draggingKeyIndex = -1;
@@ -345,21 +374,24 @@ window.onload = function() {
         });
     }
 
-    function handleNoteClick(event) {
+    async function handleNoteClick(event) {
+        // راه‌اندازی صدا (اولین بار نیاز به تعامل کاربر است)
+        await initAudio();
+
         const rect = canvas.getBoundingClientRect();
         const mouseX = (event.clientX || event.touches[0].clientX) - rect.left;
         const mouseY = (event.clientY || event.touches[0].clientY) - rect.top;
 
         // بررسی کلیک روی نت‌ها
-        for (let notePos of notePositions) {
+        for (let i = 0; i < notePositions.length; i++) {
+            const notePos = notePositions[i];
             const distance = Math.sqrt(Math.pow(mouseX - notePos.x, 2) + Math.pow(mouseY - notePos.y, 2));
-            if (distance <= notePos.radius && notePos.note !== "") {
+            if (distance <= notePos.radius && noteWithOctaves[i] !== "") {
                 // شروع انیمیشن pulse
                 notePulse[notePos.index] = Date.now();
 
-                // پخش صدا
-                sounds[notePos.note].currentTime = 0;
-                sounds[notePos.note].play();
+                // پخش نت با اکتاو صحیح با Tone.js
+                synth.triggerAttackRelease(noteWithOctaves[i], "8n");
 
                 // شروع animation loop برای pulse
                 animateNotePulse();
@@ -550,6 +582,7 @@ window.onload = function() {
         lineColors.fill(null);
         noteColors.fill(null);
         noteNames.fill("");
+        noteWithOctaves.fill("");
         highlightedNoteIndex = -1; // reset highlighted note
     }
 
@@ -612,86 +645,121 @@ window.onload = function() {
                     if (notes[keyIndex] === "C") {
                         if (staffIndex === 0) {
                             noteNames = ["B", "C", "D", "E", "F", "G", "A", "B", "C"];
+                            noteWithOctaves = ["B4", "C5", "D5", "E5", "F5", "G5", "A5", "B5", "C6"];
                         } else if (staffIndex === 1) {
                             noteNames = ["D", "E", "F", "G", "A", "B", "C", "D", "E"];
+                            noteWithOctaves = ["D3", "E3", "F3", "G3", "A3", "B3", "C4", "D4", "E4"];
                         } else if (staffIndex === 2) {
                             noteNames = ["F", "G", "A", "B", "C", "D", "E", "F", "G"];
+                            noteWithOctaves = ["F3", "G3", "A3", "B3", "C4", "D4", "E4", "F4", "G4"];
                         } else if (staffIndex === 3) {
                             noteNames = ["A", "B", "C", "D", "E", "F", "G", "A", "B"];
+                            noteWithOctaves = ["A2", "B2", "C3", "D3", "E3", "F3", "G3", "A3", "B3"];
                         } else if (staffIndex === 4) {
                             noteNames = ["C", "D", "E", "F", "G", "A", "B", "C", "D"];
+                            noteWithOctaves = ["C2", "D2", "E2", "F2", "G2", "A2", "B2", "C3", "D3"];
                         }
                     } else if (notes[keyIndex] === "D") {
                         if (staffIndex === 0) {
                             noteNames = ["C", "D", "E", "F", "G", "A", "B", "C", "D"];
+                            noteWithOctaves = ["C3", "D3", "E3", "F3", "G3", "A3", "B3", "C4", "D4"];
                         } else if (staffIndex === 1) {
                             noteNames = ["E", "F", "G", "A", "B", "C", "D", "E", "F"];
+                            noteWithOctaves = ["E3", "F3", "G3", "A3", "B3", "C4", "D4", "E4", "F4"];
                         } else if (staffIndex === 2) {
                             noteNames = ["G", "A", "B", "C", "D", "E", "F", "G", "A"];
+                            noteWithOctaves = ["G3", "A3", "B3", "C4", "D4", "E4", "F4", "G4", "A4"];
                         } else if (staffIndex === 3) {
                             noteNames = ["B", "C", "D", "E", "F", "G", "A", "B", "C"];
+                            noteWithOctaves = ["B3", "C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"];
                         } else if (staffIndex === 4) {
                             noteNames = ["D", "E", "F", "G", "A", "B", "C", "D", "E"];
+                            noteWithOctaves = ["D4", "E4", "F4", "G4", "A4", "B4", "C5", "D5", "E5"];
                         }
                     } else if (notes[keyIndex] === "E") {
                         if (staffIndex === 0) {
                             noteNames = ["D", "E", "F", "G", "A", "B", "C", "D", "E"];
+                            noteWithOctaves = ["D3", "E3", "F3", "G3", "A3", "B3", "C4", "D4", "E4"];
                         } else if (staffIndex === 1) {
                             noteNames = ["F", "G", "A", "B", "C", "D", "E", "F", "G"];
+                            noteWithOctaves = ["F3", "G3", "A3", "B3", "C4", "D4", "E4", "F4", "G4"];
                         } else if (staffIndex === 2) {
                             noteNames = ["A", "B", "C", "D", "E", "F", "G", "A", "B"];
+                            noteWithOctaves = ["A3", "B3", "C4", "D4", "E4", "F4", "G4", "A4", "B4"];
                         } else if (staffIndex === 3) {
                             noteNames = ["C", "D", "E", "F", "G", "A", "B", "C", "D"];
+                            noteWithOctaves = ["C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5", "D5"];
                         } else if (staffIndex === 4) {
                             noteNames = ["E", "F", "G", "A", "B", "C", "D", "E", "F"];
+                            noteWithOctaves = ["E4", "F4", "G4", "A4", "B4", "C5", "D5", "E5", "F5"];
                         }
                     } else if (notes[keyIndex] === "F") {
                         if (staffIndex === 0) {
                             noteNames = ["E", "F", "G", "A", "B", "C", "D", "E", "F"];
+                            noteWithOctaves = ["E2", "F2", "G2", "A2", "B2", "C3", "D3", "E3", "F3"];
                         } else if (staffIndex === 1) {
                             noteNames = ["G", "A", "B", "C", "D", "E", "F", "G", "A"];
+                            noteWithOctaves = ["G2", "A2", "B2", "C3", "D3", "E3", "F3", "G3", "A3"];
                         } else if (staffIndex === 2) {
                             noteNames = ["B", "C", "D", "E", "F", "G", "A", "B", "C"];
+                            noteWithOctaves = ["B2", "C3", "D3", "E3", "F3", "G3", "A3", "B3", "C4"];
                         } else if (staffIndex === 3) {
                             noteNames = ["D", "E", "F", "G", "A", "B", "C", "D", "E"];
+                            noteWithOctaves = ["D3", "E3", "F3", "G3", "A3", "B3", "C4", "D4", "E4"];
                         } else if (staffIndex === 4) {
                             noteNames = ["F", "G", "A", "B", "C", "D", "E", "F", "G"];
+                            noteWithOctaves = ["F3", "G3", "A3", "B3", "C4", "D4", "E4", "F4", "G4"];
                         }
                     } else if (notes[keyIndex] === "G") {
                         if (staffIndex === 0) {
                             noteNames = ["F", "G", "A", "B", "C", "D", "E", "F", "G"];
+                            noteWithOctaves = ["F3", "G3", "A3", "B3", "C4", "D4", "E4", "F4", "G4"];
                         } else if (staffIndex === 1) {
                             noteNames = ["A", "B", "C", "D", "E", "F", "G", "A", "B"];
+                            noteWithOctaves = ["A3", "B3", "C4", "D4", "E4", "F4", "G4", "A4", "B4"];
                         } else if (staffIndex === 2) {
                             noteNames = ["C", "D", "E", "F", "G", "A", "B", "C", "D"];
+                            noteWithOctaves = ["C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5", "D5"];
                         } else if (staffIndex === 3) {
                             noteNames = ["E", "F", "G", "A", "B", "C", "D", "E", "F"];
+                            noteWithOctaves = ["E4", "F4", "G4", "A4", "B4", "C5", "D5", "E5", "F5"];
                         } else if (staffIndex === 4) {
                             noteNames = ["G", "A", "B", "C", "D", "E", "F", "G", "A"];
+                            noteWithOctaves = ["G4", "A4", "B4", "C5", "D5", "E5", "F5", "G5", "A5"];
                         }
                     } else if (notes[keyIndex] === "A") {
                         if (staffIndex === 0) {
                             noteNames = ["G", "A", "B", "C", "D", "E", "F", "G", "A"];
+                            noteWithOctaves = ["G2", "A2", "B2", "C3", "D3", "E3", "F3", "G3", "A3"];
                         } else if (staffIndex === 1) {
                             noteNames = ["B", "C", "D", "E", "F", "G", "A", "B", "C"];
+                            noteWithOctaves = ["B2", "C3", "D3", "E3", "F3", "G3", "A3", "B3", "C4"];
                         } else if (staffIndex === 2) {
                             noteNames = ["D", "E", "F", "G", "A", "B", "C", "D", "E"];
+                            noteWithOctaves = ["D3", "E3", "F3", "G3", "A3", "B3", "C4", "D4", "E4"];
                         } else if (staffIndex === 3) {
                             noteNames = ["F", "G", "A", "B", "C", "D", "E", "F", "G"];
+                            noteWithOctaves = ["F3", "G3", "A3", "B3", "C4", "D4", "E4", "F4", "G4"];
                         } else if (staffIndex === 4) {
                             noteNames = ["A", "B", "C", "D", "E", "F", "G", "A", "B"];
+                            noteWithOctaves = ["A3", "B3", "C4", "D4", "E4", "F4", "G4", "A4", "B4"];
                         }
                     } else if (notes[keyIndex] === "B") {
                         if (staffIndex === 0) {
                             noteNames = ["A", "B", "C", "D", "E", "F", "G", "A", "B"];
+                            noteWithOctaves = ["A2", "B2", "C3", "D3", "E3", "F3", "G3", "A3", "B3"];
                         } else if (staffIndex === 1) {
                             noteNames = ["C", "D", "E", "F", "G", "A", "B", "C", "D"];
+                            noteWithOctaves = ["C3", "D3", "E3", "F3", "G3", "A3", "B3", "C4", "D4"];
                         } else if (staffIndex === 2) {
                             noteNames = ["E", "F", "G", "A", "B", "C", "D", "E", "F"];
+                            noteWithOctaves = ["E3", "F3", "G3", "A3", "B3", "C4", "D4", "E4", "F4"];
                         } else if (staffIndex === 3) {
                             noteNames = ["G", "A", "B", "C", "D", "E", "F", "G", "A"];
+                            noteWithOctaves = ["G3", "A3", "B3", "C4", "D4", "E4", "F4", "G4", "A4"];
                         } else if (staffIndex === 4) {
                             noteNames = ["B", "C", "D", "E", "F", "G", "A", "B", "C"];
+                            noteWithOctaves = ["B3", "C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"];
                         }
                     }
                 }
