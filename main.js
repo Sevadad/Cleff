@@ -55,6 +55,7 @@ window.onload = function() {
                     release: 1
                 }
             }).toDestination();
+            console.log("🎹 Tone.js initialized successfully!");
         }
     }
 
@@ -386,12 +387,14 @@ window.onload = function() {
         for (let i = 0; i < notePositions.length; i++) {
             const notePos = notePositions[i];
             const distance = Math.sqrt(Math.pow(mouseX - notePos.x, 2) + Math.pow(mouseY - notePos.y, 2));
-            if (distance <= notePos.radius && noteWithOctaves[i] !== "") {
+            if (distance <= notePos.radius && noteWithOctaves[notePos.index] !== "") {
                 // شروع انیمیشن pulse
                 notePulse[notePos.index] = Date.now();
 
                 // پخش نت با اکتاو صحیح با Tone.js
-                synth.triggerAttackRelease(noteWithOctaves[i], "8n");
+                const noteToPlay = noteWithOctaves[notePos.index];
+                console.log("🎵 Playing note:", noteToPlay);
+                synth.triggerAttackRelease(noteToPlay, "8n");
 
                 // شروع animation loop برای pulse
                 animateNotePulse();
