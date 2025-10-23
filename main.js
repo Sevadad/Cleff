@@ -4,14 +4,15 @@ window.onload = function() {
 
     const notes = ["C", "D", "E", "F", "G", "A", "B"];
 
+    // Modern gradient colors - بازگشت به رنگ‌های اصلی با gradient
     const colors = {
-        "C": "#FF0000",
-        "D": "#00FF00",
-        "E": "#0000FF",
-        "F": "#FFFF00",
-        "G": "#00FFFF",
-        "A": "#FF00FF",
-        "B": "#800080"
+        "C": { start: "#FF0000", end: "#CC0000", glow: "rgba(255, 0, 0, 0.6)" },      // قرمز
+        "D": { start: "#00FF00", end: "#00CC00", glow: "rgba(0, 255, 0, 0.6)" },      // سبز
+        "E": { start: "#0000FF", end: "#0000CC", glow: "rgba(0, 0, 255, 0.6)" },      // آبی
+        "F": { start: "#FFFF00", end: "#CCCC00", glow: "rgba(255, 255, 0, 0.6)" },    // زرد
+        "G": { start: "#00FFFF", end: "#00CCCC", glow: "rgba(0, 255, 255, 0.6)" },    // فیروزه‌ای
+        "A": { start: "#FF00FF", end: "#CC00CC", glow: "rgba(255, 0, 255, 0.6)" },    // صورتی
+        "B": { start: "#800080", end: "#600060", glow: "rgba(128, 0, 128, 0.6)" }     // بنفش
     };
 
     const translations = {
@@ -58,15 +59,18 @@ window.onload = function() {
     }
 
     let keySize, keySpacing, keyPositions, keyRects, staffTopMargin, staffSpacing, staffWidth, staffPositions;
-    let lineColors = Array(5).fill("#000000");
-    let noteColors = Array(9).fill("#808080");
+    let canvasLogicalWidth, canvasLogicalHeight; // ابعاد منطقی canvas (بدون dpr)
+    let lineColors = Array(5).fill(null);
+    let noteColors = Array(9).fill(null);
     let noteNames = Array(9).fill("");
     let noteWithOctaves = Array(9).fill(""); // ذخیره نت‌ها با اکتاو (مثل C4, G5)
+    let highlightedNoteIndex = -1; // فقط این نت رنگی می‌شود
     let dragging = false;
     let draggingKeyIndex = -1;
     let draggingOffset = { x: 0, y: 0 };
     let noteLabels = {};
     let notePositions = []; // ذخیره موقعیت‌های نت‌ها برای کلیک
+    let notePulse = {}; // برای انیمیشن pulse
     let showLabels = false;
     let showNotes = true;
     let showMainKeys = false;
@@ -125,26 +129,44 @@ window.onload = function() {
 
     function resizeCanvas() {
         // استفاده از visualViewport برای بهبود نمایش در موبایل
-        const width = window.visualViewport ? window.visualViewport.width : window.innerWidth;
-        const height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+        let width, height;
 
-        canvas.width = width;
-        canvas.height = height;
+        if (window.visualViewport) {
+            width = window.visualViewport.width;
+            height = window.visualViewport.height;
+        } else {
+            width = window.innerWidth || document.documentElement.clientWidth;
+            height = window.innerHeight || document.documentElement.clientHeight;
+        }
+
+        // تنظیم دقیق ابعاد canvas
+        canvas.style.width = width + 'px';
+        canvas.style.height = height + 'px';
+
+        // ذخیره ابعاد منطقی
+        canvasLogicalWidth = width;
+        canvasLogicalHeight = height;
+
+        // تنظیم resolution برای شارپ بودن
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        context.scale(dpr, dpr);
 
         if (isMobileDevice()) {
-            keySize = Math.min(canvas.width, canvas.height) / 6;
-            staffSpacing = canvas.height / 6.5;
+            keySize = Math.min(width, height) / 6;
+            staffSpacing = height / 6.5;
         } else {
-            keySize = Math.min(canvas.width, canvas.height) / 10;
-            staffSpacing = canvas.height / 6.5;
+            keySize = Math.min(width, height) / 10;
+            staffSpacing = height / 6.5;
         }
 
         keySpacing = keySize * 1.1;
         keyPositions = Array.from({ length: 7 }, (_, i) => [50, 50 + i * keySpacing]);
         keyRects = keyPositions.map(pos => ({ x: pos[0], y: pos[1], size: keySize }));
 
-        staffTopMargin = canvas.height / 10;
-        staffWidth = canvas.width - 200;
+        staffTopMargin = height / 10;
+        staffWidth = width - 200;
         staffPositions = Array.from({ length: 5 }, (_, i) => ({ x: 200, y: staffTopMargin + i * staffSpacing, width: staffWidth, height: 5 }));
     }
 
@@ -158,13 +180,48 @@ window.onload = function() {
 
     function drawStaffLines() {
         staffPositions.forEach((pos, i) => {
-            context.fillStyle = lineColors[i];
+            // رسم سایه خطوط
+            context.shadowColor = 'rgba(0, 0, 0, 0.4)';
+            context.shadowBlur = 10;
+            context.shadowOffsetX = 0;
+            context.shadowOffsetY = 3;
+
+            // رسم خط با gradient (پررنگ‌تر و تیره‌تر)
+            const lineGradient = context.createLinearGradient(pos.x, 0, pos.x + pos.width, 0);
+            lineGradient.addColorStop(0, 'rgba(40, 40, 80, 0.7)');
+            lineGradient.addColorStop(0.5, 'rgba(60, 60, 100, 0.9)');
+            lineGradient.addColorStop(1, 'rgba(40, 40, 80, 0.7)');
+
+            // اگر کلیدی روی این خط هست، glow و رنگ اضافه کن
+            if (lineColors[i]) {
+                context.shadowColor = lineColors[i].glow;
+                context.shadowBlur = 25;
+
+                // رنگ خط با رنگ کلید (پررنگ‌تر)
+                const colorGradient = context.createLinearGradient(pos.x, 0, pos.x + pos.width, 0);
+                colorGradient.addColorStop(0, lineColors[i].start);
+                colorGradient.addColorStop(0.5, lineColors[i].end);
+                colorGradient.addColorStop(1, lineColors[i].start);
+                context.fillStyle = colorGradient;
+            } else {
+                context.fillStyle = lineGradient;
+            }
+
             context.fillRect(pos.x, pos.y, pos.width, pos.height);
 
-            context.fillStyle = "#000000";
-            context.font = `${Math.min(canvas.width, canvas.height) / 30}px Arial`;
+            // Reset shadow
+            context.shadowColor = 'transparent';
+            context.shadowBlur = 0;
+
+            // شماره خط (پررنگ‌تر)
+            context.fillStyle = "rgba(255, 255, 255, 0.95)";
+            context.font = `bold ${Math.min(canvasLogicalWidth, canvasLogicalHeight) / 30}px 'Poppins', sans-serif`;
             context.textAlign = "right";
+            context.shadowColor = 'rgba(0, 0, 0, 0.7)';
+            context.shadowBlur = 6;
             context.fillText(5 - i, pos.x - 10, pos.y + pos.height / 2 + 10);
+            context.shadowColor = 'transparent';
+            context.shadowBlur = 0;
         });
     }
 
@@ -183,23 +240,137 @@ window.onload = function() {
 
         positions.forEach((y, i) => {
             const x = staffPositions[0].x + (i + 1) * spacing;
-            let color = noteColors[i];
             let note = noteNames[i];
             noteLabels[romanLabels[i]] = { x: x, y: y - 40 };
 
-            // ذخیره موقعیت نت برای کلیک
-            const noteRadius = Math.min(canvas.width, canvas.height) / 25;
-            notePositions.push({ x, y, note, radius: noteRadius });
+            const noteRadius = Math.min(canvasLogicalWidth, canvasLogicalHeight) / 25;
+            const radiusX = noteRadius * 1.2; // عرض بیضی
+            const radiusY = noteRadius * 0.85; // ارتفاع بیضی
+            const rotation = -20 * Math.PI / 180; // زاویه مایل 20 درجه
 
-            context.beginPath();
-            context.arc(x, y, noteRadius, 0, 2 * Math.PI);
-            context.fillStyle = color;
-            context.fill();
-            context.fillStyle = "#FFFFFF";
-            context.font = `${Math.min(canvas.width, canvas.height) / 20}px Arial`;
-            context.textAlign = "center";
-            context.textBaseline = "middle";
-            context.fillText(note !== "" ? (language === "fa" ? translations[note] : note) : "", x, y);
+            // محاسبه pulse برای انیمیشن
+            let scale = 1;
+            if (notePulse[i] && Date.now() - notePulse[i] < 500) {
+                const elapsed = Date.now() - notePulse[i];
+                scale = 1 + Math.sin((elapsed / 500) * Math.PI) * 0.3;
+            }
+
+            // ذخیره موقعیت نت برای کلیک
+            notePositions.push({ x, y, note, radius: noteRadius * scale, index: i });
+
+            if (note !== "") {
+                const currentRadiusX = radiusX * scale;
+                const currentRadiusY = radiusY * scale;
+
+                // فقط نت همنام (highlighted) رنگی می‌شود
+                const isHighlighted = (i === highlightedNoteIndex);
+                const colorObj = isHighlighted ? noteColors[i] : null;
+
+                if (isHighlighted && colorObj) {
+                    // نت رنگی - نت همنام کلید
+                    context.shadowColor = colorObj.glow;
+                    context.shadowBlur = 20 * scale;
+                    context.shadowOffsetX = 0;
+                    context.shadowOffsetY = 0;
+
+                    // رسم بیضی با gradient
+                    const gradient = context.createRadialGradient(x, y, 0, x, y, currentRadiusX);
+                    gradient.addColorStop(0, colorObj.start);
+                    gradient.addColorStop(1, colorObj.end);
+
+                    context.save();
+                    context.translate(x, y);
+                    context.rotate(rotation);
+                    context.beginPath();
+                    context.ellipse(0, 0, currentRadiusX, currentRadiusY, 0, 0, 2 * Math.PI);
+                    context.fillStyle = gradient;
+                    context.fill();
+
+                    // Border
+                    context.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                    context.lineWidth = 2;
+                    context.stroke();
+                    context.restore();
+
+                    context.shadowColor = 'transparent';
+                    context.shadowBlur = 0;
+
+                    // نوشتن نام نت
+                    context.fillStyle = "#FFFFFF";
+                    context.font = `bold ${Math.min(canvasLogicalWidth, canvasLogicalHeight) / 20}px 'Vazirmatn', 'Poppins', sans-serif`;
+                    context.textAlign = "center";
+                    context.textBaseline = "middle";
+                    context.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                    context.shadowBlur = 4;
+                    context.fillText(language === "fa" ? translations[note] : note, x, y);
+                    context.shadowColor = 'transparent';
+                    context.shadowBlur = 0;
+                } else {
+                    // نت خاکستری - بقیه نت‌ها
+                    const gradient = context.createRadialGradient(x, y, 0, x, y, currentRadiusX);
+                    gradient.addColorStop(0, 'rgba(180, 180, 180, 0.4)');
+                    gradient.addColorStop(1, 'rgba(120, 120, 120, 0.3)');
+
+                    context.save();
+                    context.translate(x, y);
+                    context.rotate(rotation);
+                    context.beginPath();
+                    context.ellipse(0, 0, currentRadiusX, currentRadiusY, 0, 0, 2 * Math.PI);
+                    context.fillStyle = gradient;
+                    context.fill();
+
+                    // Border
+                    context.strokeStyle = 'rgba(200, 200, 200, 0.5)';
+                    context.lineWidth = 1.5;
+                    context.stroke();
+                    context.restore();
+
+                    // نوشتن نام نت
+                    context.fillStyle = "rgba(220, 220, 220, 0.8)";
+                    context.font = `${Math.min(canvasLogicalWidth, canvasLogicalHeight) / 22}px 'Vazirmatn', 'Poppins', sans-serif`;
+                    context.textAlign = "center";
+                    context.textBaseline = "middle";
+                    context.fillText(language === "fa" ? translations[note] : note, x, y);
+                }
+            } else {
+                // نت خالی - بیضی شفاف با border واضح
+                context.save();
+                context.translate(x, y);
+                context.rotate(rotation);
+
+                // سایه برای وضوح بیشتر
+                context.shadowColor = 'rgba(0, 0, 0, 0.4)';
+                context.shadowBlur = 10;
+                context.shadowOffsetX = 0;
+                context.shadowOffsetY = 2;
+
+                context.beginPath();
+                context.ellipse(0, 0, radiusX, radiusY, 0, 0, 2 * Math.PI);
+
+                // پر کردن با شیشه‌ای روشن‌تر
+                const gradient = context.createRadialGradient(0, 0, 0, 0, 0, radiusX);
+                gradient.addColorStop(0, 'rgba(255, 255, 255, 0.25)');
+                gradient.addColorStop(1, 'rgba(255, 255, 255, 0.15)');
+                context.fillStyle = gradient;
+                context.fill();
+
+                // Border پررنگ برای visibility
+                context.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                context.lineWidth = 2.5;
+                context.stroke();
+
+                // Inner border برای جلوه بهتر
+                context.beginPath();
+                context.ellipse(0, 0, radiusX - 2, radiusY - 2, 0, 0, 2 * Math.PI);
+                context.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                context.lineWidth = 1;
+                context.stroke();
+
+                context.restore();
+
+                context.shadowColor = 'transparent';
+                context.shadowBlur = 0;
+            }
         });
     }
 
@@ -216,35 +387,101 @@ window.onload = function() {
             const notePos = notePositions[i];
             const distance = Math.sqrt(Math.pow(mouseX - notePos.x, 2) + Math.pow(mouseY - notePos.y, 2));
             if (distance <= notePos.radius && noteWithOctaves[i] !== "") {
-                // پخش نت با اکتاو صحیح
+                // شروع انیمیشن pulse
+                notePulse[notePos.index] = Date.now();
+
+                // پخش نت با اکتاو صحیح با Tone.js
                 synth.triggerAttackRelease(noteWithOctaves[i], "8n");
+
+                // شروع animation loop برای pulse
+                animateNotePulse();
                 break;
             }
+        }
+    }
+
+    function animateNotePulse() {
+        redraw();
+        // ادامه انیمیشن تا زمانی که pulse فعال باشه
+        const hasPulse = Object.values(notePulse).some(time => Date.now() - time < 500);
+        if (hasPulse) {
+            requestAnimationFrame(animateNotePulse);
         }
     }
 
     function drawKeys() {
         keyRects.forEach((rect, i) => {
             if (!rect.hidden) {
+                const centerX = rect.x + rect.size / 2;
+                const centerY = rect.y + rect.size / 2;
+                const radius = rect.size / 2;
+                const colorObj = colors[notes[i]];
+
+                // Scale effect for dragging
+                const scale = (dragging && draggingKeyIndex === i) ? 1.1 : 1;
+                const currentRadius = radius * scale;
+
+                // Glow effect
+                context.shadowColor = colorObj.glow;
+                context.shadowBlur = dragging && draggingKeyIndex === i ? 30 : 15;
+                context.shadowOffsetX = 0;
+                context.shadowOffsetY = 0;
+
+                // رسم دایره کلید با gradient
+                const gradient = context.createRadialGradient(
+                    centerX, centerY, 0,
+                    centerX, centerY, currentRadius
+                );
+                gradient.addColorStop(0, colorObj.start);
+                gradient.addColorStop(1, colorObj.end);
+
                 context.beginPath();
-                context.arc(rect.x + rect.size / 2, rect.y + rect.size / 2, rect.size / 2, 0, 2 * Math.PI);
-                context.fillStyle = colors[notes[i]];
+                context.arc(centerX, centerY, currentRadius, 0, 2 * Math.PI);
+                context.fillStyle = gradient;
                 context.fill();
+
+                // Glassmorphism border
+                context.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                context.lineWidth = 3;
+                context.stroke();
+
+                // Inner glow
+                context.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                context.lineWidth = 1;
+                context.beginPath();
+                context.arc(centerX, centerY, currentRadius - 3, 0, 2 * Math.PI);
+                context.stroke();
+
+                // Reset shadow
+                context.shadowColor = 'transparent';
+                context.shadowBlur = 0;
+
+                // نوشتن نام کلید
                 context.fillStyle = "#FFFFFF";
-                context.font = `${rect.size / 1.5}px Arial`;
+                context.font = `bold ${rect.size / 1.8}px 'Poppins', sans-serif`;
                 context.textAlign = "center";
                 context.textBaseline = "middle";
-                context.fillText(notes[i], rect.x + rect.size / 2, rect.y + rect.size / 2);
+                context.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                context.shadowBlur = 6;
+                context.fillText(notes[i], centerX, centerY);
+
+                // Reset shadow
+                context.shadowColor = 'transparent';
+                context.shadowBlur = 0;
             }
         });
     }
 
     function drawLabels() {
         for (let label in noteLabels) {
-            context.fillStyle = "#000000";
-            context.font = `${Math.min(canvas.width, canvas.height) / 30}px Arial`;
+            context.fillStyle = "rgba(255, 255, 255, 0.9)";
+            context.font = `bold ${Math.min(canvasLogicalWidth, canvasLogicalHeight) / 30}px 'Poppins', sans-serif`;
             context.textAlign = "center";
+            context.shadowColor = 'rgba(0, 0, 0, 0.5)';
+            context.shadowBlur = 6;
             context.fillText(label, noteLabels[label].x, noteLabels[label].y);
+            context.shadowColor = 'transparent';
+            context.shadowBlur = 0;
         }
     }
 
@@ -342,17 +579,57 @@ window.onload = function() {
     }
 
     function resetLineColors() {
-        lineColors.fill("#000000");
-        noteColors.fill("#808080");
+        lineColors.fill(null);
+        noteColors.fill(null);
         noteNames.fill("");
         noteWithOctaves.fill("");
+        highlightedNoteIndex = -1; // reset highlighted note
+    }
+
+    function setNoteColorsFromNames() {
+        // تنظیم رنگ‌های نت‌ها براساس نام‌هایشان
+        noteColors = noteNames.map(name => name ? colors[name] : null);
     }
 
     function displayError() {
-        context.fillStyle = "#FF0000";
-        context.font = "100px Arial";
+        // Glassmorphism error box
+        const boxWidth = Math.min(400, canvasLogicalWidth * 0.8);
+        const boxHeight = 150;
+        const boxX = (canvasLogicalWidth - boxWidth) / 2;
+        const boxY = (canvasLogicalHeight - boxHeight) / 2;
+
+        // Shadow
+        context.shadowColor = 'rgba(0, 0, 0, 0.3)';
+        context.shadowBlur = 20;
+
+        // Glass background
+        context.fillStyle = 'rgba(255, 255, 255, 0.1)';
+        context.fillRect(boxX, boxY, boxWidth, boxHeight);
+
+        // Border
+        context.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        context.lineWidth = 2;
+        context.strokeRect(boxX, boxY, boxWidth, boxHeight);
+
+        context.shadowColor = 'transparent';
+        context.shadowBlur = 0;
+
+        // Error text with glow
+        context.fillStyle = "#FF6B6B";
+        context.font = `bold ${Math.min(canvasLogicalWidth, canvasLogicalHeight) / 12}px 'Poppins', sans-serif`;
         context.textAlign = "center";
-        context.fillText("Error", canvas.width / 2, canvas.height / 2);
+        context.shadowColor = 'rgba(255, 107, 107, 0.8)';
+        context.shadowBlur = 20;
+        context.fillText("Error!", canvasLogicalWidth / 2, canvasLogicalHeight / 2 - 10);
+
+        // Sub text
+        context.font = `${Math.min(canvasLogicalWidth, canvasLogicalHeight) / 25}px 'Poppins', sans-serif`;
+        context.fillStyle = "rgba(255, 255, 255, 0.9)";
+        context.shadowBlur = 10;
+        context.fillText("Only one key per line", canvasLogicalWidth / 2, canvasLogicalHeight / 2 + 30);
+
+        context.shadowColor = 'transparent';
+        context.shadowBlur = 0;
     }
 
     function updateNotes() {
@@ -363,6 +640,7 @@ window.onload = function() {
                     lineColors[staffIndex] = colors[notes[keyIndex]];
                     noteColors[(4 - staffIndex) * 2] = colors[notes[keyIndex]];
                     noteNames[(4 - staffIndex) * 2] = notes[keyIndex];
+                    highlightedNoteIndex = (4 - staffIndex) * 2; // فقط این نت رنگی می‌شود
 
                     if (notes[keyIndex] === "C") {
                         if (staffIndex === 0) {
@@ -487,12 +765,14 @@ window.onload = function() {
                 }
             });
         });
+        // تنظیم رنگ‌های نت‌ها براساس noteNames
+        setNoteColorsFromNames();
     }
 
     let animationId = null;
 
     function draw() {
-        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.clearRect(0, 0, canvasLogicalWidth, canvasLogicalHeight);
 
         drawStaffLines();
         drawKeys();
